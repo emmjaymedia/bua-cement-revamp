@@ -1,0 +1,17 @@
+'use client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react';
+import { siteHref, official, stories } from '../lib/content';
+export default function NewsCarousel(){
+ const [viewport,api]=useEmblaCarousel({loop:true,align:'start',slidesToScroll:1});
+ const [current,setCurrent]=useState(0),[hovered,setHovered]=useState(false),[focused,setFocused]=useState(false),[reduced,setReduced]=useState(false),[visible,setVisible]=useState(false),[announcement,setAnnouncement]=useState('');
+ const root=useRef<HTMLDivElement>(null);
+ useEffect(()=>{if(!api)return;const select=()=>setCurrent(api.selectedScrollSnap());api.on('select',select);api.on('reInit',select);select();return()=>{api.off('select',select);api.off('reInit',select)}},[api]);
+ useEffect(()=>{const mq=window.matchMedia('(prefers-reduced-motion: reduce)');const update=()=>setReduced(mq.matches);update();mq.addEventListener('change',update);const observer=new IntersectionObserver(([e])=>setVisible(e.isIntersecting),{threshold:.15});if(root.current)observer.observe(root.current);return()=>{mq.removeEventListener('change',update);observer.disconnect()}},[]);
+ useEffect(()=>{if(!api||hovered||focused||reduced||!visible)return;const timer=setInterval(()=>{if(!document.hidden)api.scrollNext()},5500);return()=>clearInterval(timer)},[api,hovered,focused,reduced,visible]);
+ const move=useCallback((direction:number)=>{if(!api)return;if(direction<0)api.scrollPrev();else api.scrollNext();setAnnouncement('Showing story '+(api.selectedScrollSnap()+1)+' of '+stories.length)},[api]);
+ return <div className="stories-carousel" ref={root} role="region" aria-roledescription="carousel" aria-label="Inside BUA Cement stories" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setFocused(false)}}>
+ <div className="stories-viewport" ref={viewport}><div className="stories-track">{stories.map((story,index)=><article className="story-slide" key={story.path} aria-roledescription="slide" aria-label={`${index+1} of ${stories.length}`}><a className="story-photo-card" href={siteHref(story.path)}><img src={'/images/'+story.image+'.webp'} alt={story.description} loading="lazy"/><div className="story-photo-shade"/><span className="story-category">{story.tag}</span><span className="story-open"><ArrowUpRight size={20}/></span><div className="story-photo-copy"><time>{story.date}</time><h3>{story.title}</h3><span className="story-read">Read the story <ArrowUpRight size={15}/></span></div></a></article>)}</div></div>
+ <div className="stories-controls"><button className="stories-arrow" onClick={()=>move(-1)} aria-label="Previous story"><ArrowLeft size={21}/></button><div className="stories-pagination"><span aria-hidden="true">{String(current+1).padStart(2,'0')}</span><div className="stories-progress" aria-hidden="true"><span style={{width:100/stories.length+'%',transform:`translateX(${current*100}%)`}}/></div><span aria-hidden="true">{String(stories.length).padStart(2,'0')}</span></div><button className="stories-arrow" onClick={()=>move(1)} aria-label="Next story"><ArrowRight size={21}/></button></div><p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p></div>;
+}
